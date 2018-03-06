@@ -49,8 +49,8 @@ public class Handler: ChannelInboundHandler {
             //     itrans.reset(readBuffer: data)
             // }
 
-            //CREATE SEMAPHORE
             //var array
+            let sem = DispatchSemaphore(value: 0)
 
             let otrans = TMemoryBufferTransport(flushHandler: { trans, buff in
                 // array = buff.withUnsafeBytes {
@@ -60,7 +60,7 @@ public class Handler: ChannelInboundHandler {
                 // response.setBody(bytes: array)
                 // response.completed()
 
-                //SET SEMAPHORE
+                sem.signal()
             })
 
             let inproto = inProtocolType.init(on: itrans)
@@ -70,7 +70,7 @@ public class Handler: ChannelInboundHandler {
                 try processor.process(on: inproto, outProtocol: outproto)
                 try otrans.flush()
 
-                //WAIT SEMAPHORE
+                sem.wait()
 
                 buffer = ctx.channel.allocator.buffer(capacity: 5)
                 buffer.write(staticString: "THRIFT")  // TODO: array
