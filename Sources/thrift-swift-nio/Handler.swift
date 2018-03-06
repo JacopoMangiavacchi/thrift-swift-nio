@@ -42,13 +42,13 @@ public class Handler: ChannelInboundHandler {
         case .head(let request):
             keepAlive = request.isKeepAlive
             version = request.version
-        case .body(buffer: let buf):
-            //TODO: Get InProtocol && OutProtocol
+        case .body(buffer: var buf):
             let itrans = TMemoryBufferTransport()
-            // if let bytes = request.postBodyBytes {
-            //     let data = Data(bytes: bytes)
-            //     itrans.reset(readBuffer: data)
-            // }
+            let inputSize = buf.readableBytes
+            if let input = buf.readBytes(length: inputSize) {
+                let data = Data(bytes: input)
+                itrans.reset(readBuffer: data)
+            }
 
             var bodyOutputBuffer = [UInt8]()
             let sem = DispatchSemaphore(value: 0)
