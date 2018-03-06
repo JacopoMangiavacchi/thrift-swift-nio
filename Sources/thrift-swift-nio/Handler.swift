@@ -24,9 +24,14 @@ public class Handler: ChannelInboundHandler {
     private let fileIO: NonBlockingFileIO
     private let processor: Processor
     
-    public init(fileIO: NonBlockingFileIO, processor: Processor) {
+    private let inProtocol: TProtocol
+    private let outProtocol: TProtocol
+    
+    public init(fileIO: NonBlockingFileIO, processor: Processor, inProtocol: TProtocol, outProtocol: TProtocol) {
         self.fileIO = fileIO
         self.processor = processor
+        self.inProtocol = inProtocol
+        self.outProtocol = outProtocol
     }
     
     public func channelRead(ctx: ChannelHandlerContext, data: NIOAny) {
