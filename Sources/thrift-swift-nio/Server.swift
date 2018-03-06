@@ -1,5 +1,5 @@
 //
-//  HTTPServer.swift
+//  Server.swift
 //  SwiftNIOTest
 //
 //  Created by Jacopo Mangiavacchi on 3/1/18.
@@ -8,6 +8,12 @@
 import Foundation
 import NIO
 import NIOHTTP1
+import Thrift
+
+public protocol Processor {
+  func process(on inProtocol: TProtocol, outProtocol: TProtocol) throws
+}
+
 
 public class Server {
     var host: String
@@ -15,12 +21,12 @@ public class Server {
     var group: MultiThreadedEventLoopGroup
     var threadPool: BlockingIOThreadPool
     var fileIO: NonBlockingFileIO
-    var router: Router
+    var processor: Processor
 
-    init(host: String, port: Int, with router: Router, eventLoopThreads: Int = 1, poolThreads: Int = 6) {
+    init(host: String, port: Int, with processor: Processor, eventLoopThreads: Int = 1, poolThreads: Int = 6) {
         self.host = host
         self.port = port
-        self.router = router
+        self.processor = processor
         
         group = MultiThreadedEventLoopGroup(numThreads: eventLoopThreads)
         threadPool = BlockingIOThreadPool(numberOfThreads: poolThreads)
@@ -40,7 +46,7 @@ public class Server {
                 // Set the handlers that are applied to the accepted Channels
                 .childChannelInitializer { channel in
                     channel.pipeline.addHTTPServerHandlers().then {
-                        channel.pipeline.add(handler: Handler(fileIO: self.fileIO, router: self.router))
+                        channel.pipeline.add(handler: Handler(fileIO: self.fileIO, processor: self.processor))
                     }
                 }
                 

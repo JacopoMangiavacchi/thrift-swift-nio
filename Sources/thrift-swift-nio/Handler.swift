@@ -1,5 +1,5 @@
 //
-//  HTTPHandler.swift
+//  Handler.swift
 //  SwiftNIOTest
 //
 //  Created by Jacopo Mangiavacchi on 3/1/18.
@@ -8,6 +8,7 @@
 import Foundation
 import NIO
 import NIOHTTP1
+import Thrift
 
 public class Handler: ChannelInboundHandler {
     private enum FileIOMethod {
@@ -21,11 +22,11 @@ public class Handler: ChannelInboundHandler {
     private var keepAlive = false
     
     private let fileIO: NonBlockingFileIO
-    private let router: Router
+    private let processor: Processor
     
-    public init(fileIO: NonBlockingFileIO, router: Router) {
+    public init(fileIO: NonBlockingFileIO, processor: Processor) {
         self.fileIO = fileIO
-        self.router = router
+        self.processor = processor
     }
     
     public func channelRead(ctx: ChannelHandlerContext, data: NIOAny) {
@@ -36,17 +37,22 @@ public class Handler: ChannelInboundHandler {
             keepAlive = request.isKeepAlive
             var buffer: ByteBuffer
             
-            if let routerHandler = router.routingTable[request.uri] {
-                let responseBody = routerHandler.respond()
-                
-                buffer = ctx.channel.allocator.buffer(capacity: responseBody.lengthOfBytes(using: String.Encoding.utf8))
-                buffer.write(string: responseBody)
-            }
-            else {
-                buffer = ctx.channel.allocator.buffer(capacity: 5)
-                buffer.write(staticString: "ERROR")
-            }
-                
+            //TODO: Get InProtocol && OutProtocol
+            
+            //TODO: call processor
+            // do {
+            //     try processor.process(on: inproto, outProtocol: outproto)
+            //     try otrans.flush()
+            // } catch {
+            // }
+
+            buffer = ctx.channel.allocator.buffer(capacity: 5)
+            buffer.write(staticString: "THRIFT")
+
+            //TODO: Add Thrift header
+
+            //TODO: Add right content-lenght
+
             var responseHead = HTTPResponseHead(version: request.version, status: HTTPResponseStatus.ok)
             responseHead.headers.add(name: "content-length", value: String(buffer.readableBytes))
             let response = HTTPServerResponsePart.head(responseHead)
