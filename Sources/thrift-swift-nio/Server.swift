@@ -22,15 +22,15 @@ public class Server {
     private let threadPool: BlockingIOThreadPool
     private let fileIO: NonBlockingFileIO
     private let processor: Processor
-    private let inProtocol: TProtocol
-    private let outProtocol: TProtocol
+    private let inProtocolType: TProtocol.Type
+    private let outProtocolType: TProtocol.Type
 
-    init(host: String, port: Int, with processor: Processor, eventLoopThreads: Int = 1, poolThreads: Int = 6, inProtocol: TProtocol, outProtocol: TProtocol) {
+    init(host: String, port: Int, with processor: Processor, eventLoopThreads: Int = 1, poolThreads: Int = 6, inProtocolType: TProtocol.Type, outProtocolType: TProtocol.Type) {
         self.host = host
         self.port = port
         self.processor = processor
-        self.inProtocol = inProtocol
-        self.outProtocol = outProtocol
+        self.inProtocolType = inProtocolType
+        self.outProtocolType = outProtocolType
         
         group = MultiThreadedEventLoopGroup(numThreads: eventLoopThreads)
         threadPool = BlockingIOThreadPool(numberOfThreads: poolThreads)
@@ -50,7 +50,7 @@ public class Server {
                 // Set the handlers that are applied to the accepted Channels
                 .childChannelInitializer { channel in
                     channel.pipeline.addHTTPServerHandlers().then {
-                        channel.pipeline.add(handler: Handler(fileIO: self.fileIO, processor: self.processor, inProtocol: self.inProtocol, outProtocol: self.outProtocol))
+                        channel.pipeline.add(handler: Handler(fileIO: self.fileIO, processor: self.processor, inProtocolType: self.inProtocolType, outProtocolType: self.outProtocolType))
                     }
                 }
                 

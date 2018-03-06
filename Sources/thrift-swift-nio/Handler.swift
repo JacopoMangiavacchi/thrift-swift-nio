@@ -24,14 +24,14 @@ public class Handler: ChannelInboundHandler {
     private let fileIO: NonBlockingFileIO
     private let processor: Processor
     
-    private let inProtocol: TProtocol
-    private let outProtocol: TProtocol
+    private let inProtocolType: TProtocol.Type
+    private let outProtocolType: TProtocol.Type
     
-    public init(fileIO: NonBlockingFileIO, processor: Processor, inProtocol: TProtocol, outProtocol: TProtocol) {
+    public init(fileIO: NonBlockingFileIO, processor: Processor, inProtocolType: TProtocol.Type, outProtocolType: TProtocol.Type) {
         self.fileIO = fileIO
         self.processor = processor
-        self.inProtocol = inProtocol
-        self.outProtocol = outProtocol
+        self.inProtocolType = inProtocolType
+        self.outProtocolType = outProtocolType
     }
     
     public func channelRead(ctx: ChannelHandlerContext, data: NIOAny) {
@@ -43,28 +43,62 @@ public class Handler: ChannelInboundHandler {
             var buffer: ByteBuffer
             
             //TODO: Get InProtocol && OutProtocol
-            
-            //TODO: call processor
-            // do {
-            //     try processor.process(on: inproto, outProtocol: outproto)
-            //     try otrans.flush()
-            // } catch {
+            let itrans = TMemoryBufferTransport()
+            // if let bytes = request.postBodyBytes {
+            //     let data = Data(bytes: bytes)
+            //     itrans.reset(readBuffer: data)
             // }
 
-            buffer = ctx.channel.allocator.buffer(capacity: 5)
-            buffer.write(staticString: "THRIFT")
+            //CREATE SEMAPHORE
+            //var array
 
-            //TODO: Add Thrift header
+            let otrans = TMemoryBufferTransport(flushHandler: { trans, buff in
+                // array = buff.withUnsafeBytes {
+                // Array<UInt8>(UnsafeBufferPointer(start: $0, count: buff.count))
+                // }
+                // response.status = .ok
+                // response.setBody(bytes: array)
+                // response.completed()
 
-            //TODO: Add right content-lenght
+                //SET SEMAPHORE
+            })
 
-            var responseHead = HTTPResponseHead(version: request.version, status: HTTPResponseStatus.ok)
-            responseHead.headers.add(name: "content-length", value: String(buffer.readableBytes))
-            let response = HTTPServerResponsePart.head(responseHead)
-            ctx.write(self.wrapOutboundOut(response), promise: nil)
-            
-            let content = HTTPServerResponsePart.body(.byteBuffer(buffer.slice()))
-            ctx.write(self.wrapOutboundOut(content), promise: nil)
+            let inproto = inProtocolType.init(on: itrans)
+            let outproto = outProtocolType.init(on: otrans)
+
+            do {
+                try processor.process(on: inproto, outProtocol: outproto)
+                try otrans.flush()
+
+                //WAIT SEMAPHORE
+
+                buffer = ctx.channel.allocator.buffer(capacity: 5)
+                buffer.write(staticString: "THRIFT")  // TODO: array
+
+                var responseHead = HTTPResponseHead(version: request.version, status: HTTPResponseStatus.ok)
+                responseHead.headers.add(name: "content-type", value: "application/x-thrift")
+
+                //TODO: Add right content-lenght
+                responseHead.headers.add(name: "content-length", value: String(buffer.readableBytes))  // TODO: array.length
+
+                let response = HTTPServerResponsePart.head(responseHead)
+                ctx.write(self.wrapOutboundOut(response), promise: nil)
+                
+                let content = HTTPServerResponsePart.body(.byteBuffer(buffer.slice()))
+                ctx.write(self.wrapOutboundOut(content), promise: nil)
+            } catch {
+                buffer = ctx.channel.allocator.buffer(capacity: 5)
+                buffer.write(staticString: "error")
+
+                var responseHead = HTTPResponseHead(version: request.version, status: HTTPResponseStatus.ok)
+                responseHead.headers.add(name: "content-length", value: String(buffer.readableBytes))
+
+                let response = HTTPServerResponsePart.head(responseHead)
+                ctx.write(self.wrapOutboundOut(response), promise: nil)
+                
+                let content = HTTPServerResponsePart.body(.byteBuffer(buffer.slice()))
+                ctx.write(self.wrapOutboundOut(content), promise: nil)
+            }
         case .body:
             break
         case .end:
