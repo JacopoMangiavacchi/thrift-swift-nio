@@ -40,7 +40,6 @@ public class Handler: ChannelInboundHandler {
         switch reqPart {
         case .head(let request):
             keepAlive = request.isKeepAlive
-            var buffer: ByteBuffer
             
             //TODO: Get InProtocol && OutProtocol
             let itrans = TMemoryBufferTransport()
@@ -49,16 +48,13 @@ public class Handler: ChannelInboundHandler {
             //     itrans.reset(readBuffer: data)
             // }
 
-            //var array
+            var bodyOutputBuffer = [UInt8]()
             let sem = DispatchSemaphore(value: 0)
 
             let otrans = TMemoryBufferTransport(flushHandler: { trans, buff in
-                // array = buff.withUnsafeBytes {
-                // Array<UInt8>(UnsafeBufferPointer(start: $0, count: buff.count))
-                // }
-                // response.status = .ok
-                // response.setBody(bytes: array)
-                // response.completed()
+                bodyOutputBuffer = buff.withUnsafeBytes {
+                    Array<UInt8>(UnsafeBufferPointer(start: $0, count: buff.count))
+                }
 
                 sem.signal()
             })
@@ -72,14 +68,12 @@ public class Handler: ChannelInboundHandler {
 
                 sem.wait()
 
-                buffer = ctx.channel.allocator.buffer(capacity: 5)
-                buffer.write(staticString: "THRIFT")  // TODO: array
+                var buffer = ctx.channel.allocator.buffer(capacity: bodyOutputBuffer.count)
+                buffer.write(bytes: bodyOutputBuffer)
 
                 var responseHead = HTTPResponseHead(version: request.version, status: HTTPResponseStatus.ok)
                 responseHead.headers.add(name: "content-type", value: "application/x-thrift")
-
-                //TODO: Add right content-lenght
-                responseHead.headers.add(name: "content-length", value: String(buffer.readableBytes))  // TODO: array.length
+                responseHead.headers.add(name: "content-length", value: String(bodyOutputBuffer.count))
 
                 let response = HTTPServerResponsePart.head(responseHead)
                 ctx.write(self.wrapOutboundOut(response), promise: nil)
@@ -87,7 +81,7 @@ public class Handler: ChannelInboundHandler {
                 let content = HTTPServerResponsePart.body(.byteBuffer(buffer.slice()))
                 ctx.write(self.wrapOutboundOut(content), promise: nil)
             } catch {
-                buffer = ctx.channel.allocator.buffer(capacity: 5)
+                var buffer = ctx.channel.allocator.buffer(capacity: 5)
                 buffer.write(staticString: "error")
 
                 var responseHead = HTTPResponseHead(version: request.version, status: HTTPResponseStatus.ok)
