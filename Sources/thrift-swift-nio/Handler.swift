@@ -20,6 +20,7 @@ public class Handler: ChannelInboundHandler {
     
     private var requestUri: String?
     private var keepAlive = false
+    private var version: HTTPVersion!
     
     private let fileIO: NonBlockingFileIO
     private let processor: Processor
@@ -40,7 +41,8 @@ public class Handler: ChannelInboundHandler {
         switch reqPart {
         case .head(let request):
             keepAlive = request.isKeepAlive
-            
+            version = request.version
+        case .body(buffer: let buf):
             //TODO: Get InProtocol && OutProtocol
             let itrans = TMemoryBufferTransport()
             // if let bytes = request.postBodyBytes {
@@ -71,7 +73,7 @@ public class Handler: ChannelInboundHandler {
                 var buffer = ctx.channel.allocator.buffer(capacity: bodyOutputBuffer.count)
                 buffer.write(bytes: bodyOutputBuffer)
 
-                var responseHead = HTTPResponseHead(version: request.version, status: HTTPResponseStatus.ok)
+                var responseHead = HTTPResponseHead(version: version, status: HTTPResponseStatus.ok)
                 responseHead.headers.add(name: "content-type", value: "application/x-thrift")
                 responseHead.headers.add(name: "content-length", value: String(bodyOutputBuffer.count))
 
@@ -84,7 +86,7 @@ public class Handler: ChannelInboundHandler {
                 var buffer = ctx.channel.allocator.buffer(capacity: 5)
                 buffer.write(staticString: "error")
 
-                var responseHead = HTTPResponseHead(version: request.version, status: HTTPResponseStatus.ok)
+                var responseHead = HTTPResponseHead(version: version, status: HTTPResponseStatus.ok)
                 responseHead.headers.add(name: "content-length", value: String(buffer.readableBytes))
 
                 let response = HTTPServerResponsePart.head(responseHead)
@@ -93,8 +95,6 @@ public class Handler: ChannelInboundHandler {
                 let content = HTTPServerResponsePart.body(.byteBuffer(buffer.slice()))
                 ctx.write(self.wrapOutboundOut(content), promise: nil)
             }
-        case .body:
-            break
         case .end:
             if keepAlive {
                 ctx.write(self.wrapOutboundOut(HTTPServerResponsePart.end(nil)), promise: nil)
