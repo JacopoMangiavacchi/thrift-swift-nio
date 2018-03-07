@@ -25,7 +25,7 @@ public class Server {
     private let inProtocolType: TProtocol.Type
     private let outProtocolType: TProtocol.Type
 
-    init(host: String, port: Int, with processor: Processor, eventLoopThreads: Int = 1, poolThreads: Int = 6, inProtocolType: TProtocol.Type, outProtocolType: TProtocol.Type) {
+    public init(host: String, port: Int, with processor: Processor, eventLoopThreads: Int = 1, poolThreads: Int = 6, inProtocolType: TProtocol.Type, outProtocolType: TProtocol.Type) {
         self.host = host
         self.port = port
         self.processor = processor
@@ -40,7 +40,7 @@ public class Server {
     }
     
     
-    func run() {
+    public func run() {
         do {
             let bootstrap = ServerBootstrap(group: group)
                 // Specify backlog and enable SO_REUSEADDR for the server itself
